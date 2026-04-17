@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koordinat-Battleship</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f4f8; }
+        .game-container { display: flex; gap: 50px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
+        .board-wrapper { display: flex; flex-direction: column; align-items: center; }
+        h2 { color: #2c3e50; }
+        
+        /* Selve rutenettet */
+        .grid-container {
+            display: grid;
+            grid-template-columns: 30px repeat(10, 40px);
+            grid-template-rows: repeat(10, 40px) 30px;
+            border: 2px solid #34495e;
+            background-color: white;
+        }
+
+        .cell {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 20px;
+            user-select: none;
+        }
+
+        /* Akse-merking */
+        .axis-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            background-color: #ecf0f1;
+            font-size: 14px;
+        }
+
+        /* Tilstander på skip og skudd */
+        .ship { background-color: #3498db !important; border-radius: 4px; } /* Mitt skip */
+        .miss { color: #95a5a6; } /* En sirkel for bom (O) */
+        .hit { color: #e74c3c; }  /* Et kryss for treff (X) */
+        
+        .instructions { max-width: 600px; text-align: center; margin: 20px; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+    <h1>Koordinat-Battleship</h1>
+    
+    <div class="instructions">
+        <strong>Mitt Brett:</strong> Klikk for å plassere/fjerne dine skip.<br>
+        <strong>Motstanderens Brett:</strong> Klikk én gang for 🔵 (Bom), to ganger for ❌ (Treff).
+    </div>
+
+    <div class="game-container">
+        <div class="board-wrapper">
+            <h2>Mitt Brett</h2>
+            <div id="my-board" class="grid-container"></div>
+        </div>
+
+        <div class="board-wrapper">
+            <h2>Motstanderens Brett (Gjett)</h2>
+            <div id="opponent-board" class="grid-container"></div>
+        </div>
+    </div>
+
+    <script>
+        function createBoard(containerId, isOpponent) {
+            const container = document.getElementById(containerId);
+            
+            // Lag rutenettet (10 rader, y går fra 10 ned til 1)
+            for (let y = 10; y >= 1; y--) {
+                // Y-akse merking
+                const yLabel = document.createElement('div');
+                yLabel.className = 'axis-label';
+                yLabel.innerText = y;
+                container.appendChild(yLabel);
+
+                for (let x = 1; x <= 10; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+
+                    cell.addEventListener('click', () => {
+                        if (!isOpponent) {
+                            // Logikk for egne skip
+                            cell.classList.toggle('ship');
+                        } else {
+                            // Logikk for gjett: Tom -> Bom -> Treff -> Tom
+                            if (!cell.innerText) {
+                                cell.innerText = '○';
+                                cell.classList.add('miss');
+                            } else if (cell.innerText === '○') {
+                                cell.innerText = '✕';
+                                cell.classList.remove('miss');
+                                cell.classList.add('hit');
+                            } else {
+                                cell.innerText = '';
+                                cell.classList.remove('hit');
+                            }
+                        }
+                    });
+                    container.appendChild(cell);
+                }
+            }
+
+            // X-akse merking (nederste rad)
+            container.appendChild(document.createElement('div')); // Tomt hjørne
+            for (let x = 1; x <= 10; x++) {
+                const xLabel = document.createElement('div');
+                xLabel.className = 'axis-label';
+                xLabel.innerText = x;
+                container.appendChild(xLabel);
+            }
+        }
+
+        // Generer begge brettene
+        createBoard('my-board', false);
+        createBoard('opponent-board', true);
+    </script>
+</body>
+</html>
