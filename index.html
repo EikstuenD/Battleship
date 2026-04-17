@@ -3,128 +3,295 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Koordinat-Battleship</title>
+    <title>Koordinat-Battleship v2</title>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f4f8; }
-        .game-container { display: flex; gap: 50px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
-        .board-wrapper { display: flex; flex-direction: column; align-items: center; }
-        h2 { color: #2c3e50; }
+        :root {
+            --cell-size: 38px;
+            --grid-color: #ddd;
+            --border-color: #34495e;
+            --ship-color: #3498db;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        h1 { color: #2c3e50; margin-bottom: 10px; }
         
-        /* Selve rutenettet */
-        .grid-container {
+        .game-area { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        .boards-container { display: flex; gap: 40px; flex-wrap: wrap; justify-content: center; }
+        .board-wrapper { display: flex; flex-direction: column; align-items: center; }
+        h2 { color: #34495e; font-size: 1.2rem; margin-bottom: 5px; }
+
+        /* Hovedlayout for rutenett inkludert aksetitler */
+        .grid-layout {
             display: grid;
-            grid-template-columns: 30px repeat(10, 40px);
-            grid-template-rows: repeat(10, 40px) 30px;
-            border: 2px solid #34495e;
+            grid-template-columns: 30px 40px repeat(10, var(--cell-size)); /* Y-tittel, Y-tall, 10 ruter */
+            grid-template-rows: repeat(10, var(--cell-size)) 40px 30px; /* 10 ruter, X-tall, X-tittel */
             background-color: white;
+            padding: 5px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
 
+        /* Selve spillrutene */
         .cell {
-            width: 40px;
-            height: 40px;
-            border: 1px solid #ddd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 20px;
-            user-select: none;
+            width: var(--cell-size); height: var(--cell-size);
+            border: 1px solid var(--grid-color);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; user-select: none; box-sizing: border-box;
         }
 
-        /* Akse-merking */
-        .axis-label {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            background-color: #ecf0f1;
-            font-size: 14px;
-        }
+        /* Grensen mellom akser og brett */
+        #my-board .cell, #opponent-board .cell { border-collapse: collapse; }
+
+        /* Akse-styling */
+        .axis-label { display: flex; align-items: center; justify-content: center; font-weight: bold; color: #7f8c8d; font-size: 14px; }
+        
+        /* Aksetitler (X-akse og Y-akse) */
+        .axis-title-x { grid-column: 3 / span 10; font-style: italic; color: #e74c3c; }
+        .axis-title-y { grid-row: 1 / span 10; writing-mode: vertical-rl; transform: rotate(180deg); font-style: italic; color: #e74c3c; }
+
+        /* Interaksjonstyper */
+        .opponent-cell { cursor: crosshair; }
+        .opponent-cell:hover { background-color: #fcf3f3; }
+        
+        /* Drag & Drop visuell hjelp */
+        .player-cell.hover-valid { background-color: rgba(52, 152, 219, 0.3); }
+        .player-cell.hover-invalid { background-color: rgba(231, 76, 60, 0.3); cursor: not-allowed; }
 
         /* Tilstander på skip og skudd */
-        .ship { background-color: #3498db !important; border-radius: 4px; } /* Mitt skip */
-        .miss { color: #95a5a6; } /* En sirkel for bom (O) */
-        .hit { color: #e74c3c; }  /* Et kryss for treff (X) */
+        .placed-ship { background-color: var(--ship-color) !important; border-color: #2980b9; } 
+        .hit-marker { font-size: 28px; animation: popIn 0.3s ease; }
+        .miss-marker { color: #e74c3c; font-weight: bold; animation: popIn 0.3s ease; }
+
+        @keyframes popIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+
+        /* Havnen (der man drar skip fra) */
+        .harbor {
+            margin-top: 20px; width: 100%; max-width: 500px;
+            background: white; padding: 15px; border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .harbor-ships { display: flex; gap: 15px; justify-content: center; align-items: flex-start; margin-top: 10px; min-height: 50px; }
         
-        .instructions { max-width: 600px; text-align: center; margin: 20px; line-height: 1.5; }
+        /* Dragsbare skip */
+        .draggable-ship {
+            background-color: var(--ship-color);
+            border-radius: 4px; cursor: grab;
+            display: flex; box-sizing: border-box;
+            transition: transform 0.2s;
+        }
+        .draggable-ship:active { cursor: grabbing; transform: scale(1.05); opacity: 0.8; }
+        
+        /* Skip-størrelser (horisontale i havnen) */
+        .ship-4 { width: calc(var(--cell-size) * 4); height: var(--cell-size); }
+        .ship-3 { width: calc(var(--cell-size) * 3); height: var(--cell-size); }
+        .ship-2 { width: calc(var(--cell-size) * 2); height: var(--cell-size); }
+
     </style>
 </head>
 <body>
 
     <h1>Koordinat-Battleship</h1>
     
-    <div class="instructions">
-        <strong>Mitt Brett:</strong> Klikk for å plassere/fjerne dine skip.<br>
-        <strong>Motstanderens Brett:</strong> Klikk én gang for 🔵 (Bom), to ganger for ❌ (Treff).
-    </div>
+    <div class="game-area">
+        <div class="boards-container">
+            <div class="board-wrapper">
+                <h2>Mitt Brett (Plasser skip)</h2>
+                <div id="my-board" class="grid-layout">
+                    </div>
+            </div>
 
-    <div class="game-container">
-        <div class="board-wrapper">
-            <h2>Mitt Brett</h2>
-            <div id="my-board" class="grid-container"></div>
+            <div class="board-wrapper">
+                <h2>Motstanderens Brett (Gjett)</h2>
+                <div id="opponent-board" class="grid-layout">
+                    </div>
+            </div>
         </div>
 
-        <div class="board-wrapper">
-            <h2>Motstanderens Brett (Gjett)</h2>
-            <div id="opponent-board" class="grid-container"></div>
+        <div class="harbor">
+            <h3>Havn</h3>
+            <p style="font-size: 0.9rem; color: #666; margin: 0 0 10px 0;">Dra skipene over til ditt brett.</p>
+            <div id="harbor-ships" class="harbor-ships">
+                <div class="draggable-ship ship-4" draggable="true" id="ship-4-1" data-length="4"></div>
+                <div class="draggable-ship ship-3" draggable="true" id="ship-3-1" data-length="3"></div>
+                <div class="draggable-ship ship-2" draggable="true" id="ship-2-1" data-length="2"></div>
+                <div class="draggable-ship ship-2" draggable="true" id="ship-2-2" data-length="2"></div>
+            </div>
         </div>
     </div>
 
     <script>
-        function createBoard(containerId, isOpponent) {
+        const GRID_SIZE = 10;
+        let draggedShip = null;
+
+        // --- Oppsett av brett ---
+        function createBoardMarkup(containerId, isOpponent) {
             const container = document.getElementById(containerId);
             
-            // Lag rutenettet (10 rader, y går fra 10 ned til 1)
-            for (let y = 10; y >= 1; y--) {
-                // Y-akse merking
+            // 1. Y-aksetittel ("Y-akse")
+            const yTitle = document.createElement('div');
+            yTitle.className = 'axis-label axis-title-y';
+            yTitle.innerText = 'Y - akse';
+            container.appendChild(yTitle);
+
+            // 2. Generer rader (fra 10 ned til 1)
+            for (let y = GRID_SIZE; y >= 1; y--) {
+                // Y-akse tall
                 const yLabel = document.createElement('div');
                 yLabel.className = 'axis-label';
                 yLabel.innerText = y;
+                yLabel.style.gridColumn = '2'; // Fast i kolonne 2
                 container.appendChild(yLabel);
 
-                for (let x = 1; x <= 10; x++) {
+                // Spillruter for denne raden
+                for (let x = 1; x <= GRID_SIZE; x++) {
                     const cell = document.createElement('div');
-                    cell.className = 'cell';
+                    cell.className = `cell ${isOpponent ? 'opponent-cell' : 'player-cell'}`;
                     cell.dataset.x = x;
                     cell.dataset.y = y;
-
-                    cell.addEventListener('click', () => {
-                        if (!isOpponent) {
-                            // Logikk for egne skip
-                            cell.classList.toggle('ship');
-                        } else {
-                            // Logikk for gjett: Tom -> Bom -> Treff -> Tom
-                            if (!cell.innerText) {
-                                cell.innerText = '○';
-                                cell.classList.add('miss');
-                            } else if (cell.innerText === '○') {
-                                cell.innerText = '✕';
-                                cell.classList.remove('miss');
-                                cell.classList.add('hit');
-                            } else {
-                                cell.innerText = '';
-                                cell.classList.remove('hit');
-                            }
-                        }
-                    });
+                    
+                    if (isOpponent) {
+                        setupOpponentLogic(cell);
+                    } else {
+                        setupPlayerLogic(cell);
+                    }
                     container.appendChild(cell);
                 }
             }
 
-            // X-akse merking (nederste rad)
-            container.appendChild(document.createElement('div')); // Tomt hjørne
-            for (let x = 1; x <= 10; x++) {
+            // 3. Nederste rad (Hjørne + X-tall)
+            // Tomt hjørne (Krysning X/Y tall)
+            const corner = document.createElement('div');
+            corner.style.gridColumn = '2'; corner.style.gridRow = GRID_SIZE + 1;
+            container.appendChild(corner);
+
+            // X-akse tall
+            for (let x = 1; x <= GRID_SIZE; x++) {
                 const xLabel = document.createElement('div');
                 xLabel.className = 'axis-label';
                 xLabel.innerText = x;
+                xLabel.style.gridRow = GRID_SIZE + 1; // Fast i rad 11
                 container.appendChild(xLabel);
             }
+
+            // 4. X-aksetittel ("X-akse")
+            const xTitle = document.createElement('div');
+            xTitle.className = 'axis-label axis-title-x';
+            xTitle.innerText = 'X - akse';
+            xTitle.style.gridRow = GRID_SIZE + 2; // Fast i rad 12
+            container.appendChild(xTitle);
         }
 
-        // Generer begge brettene
-        createBoard('my-board', false);
-        createBoard('opponent-board', true);
+        // --- Logikk for Motstanderens brett (Gjette) ---
+        // Rekkefølge: Tom -> ❌ (Bom) -> 💥 (Treff) -> Tom
+        function setupOpponentLogic(cell) {
+            cell.addEventListener('click', () => {
+                if (!cell.innerText) {
+                    cell.innerText = '❌'; // Bom
+                    cell.classList.add('miss-marker');
+                } else if (cell.innerText === '❌') {
+                    cell.innerText = '💥'; // Treff
+                    cell.classList.remove('miss-marker');
+                    cell.classList.add('hit-marker');
+                } else {
+                    cell.innerText = ''; // Nullstill
+                    cell.classList.remove('hit-marker');
+                }
+            });
+        }
+
+        // --- Logikk for Spillerens brett (Drag & Drop) ---
+        // Merk: For enkelhets skyld legger vi skipene horisontalt (mot høyre) fra koordinatet man slipper på.
+        function setupPlayerLogic(cell) {
+            // Tillat at noe slippes her
+            cell.addEventListener('dragover', (e) => {
+                e.preventDefault(); 
+                if (!draggedShip) return;
+
+                const shipLength = parseInt(draggedShip.dataset.length);
+                const canPlace = checkPlacementValidity(cell, shipLength);
+                
+                cell.classList.add(canPlace ? 'hover-valid' : 'hover-invalid');
+            });
+
+            cell.addEventListener('dragleave', () => {
+                cell.classList.remove('hover-valid', 'hover-invalid');
+            });
+
+            cell.addEventListener('drop', (e) => {
+                e.preventDefault();
+                cell.classList.remove('hover-valid', 'hover-invalid');
+                
+                if (!draggedShip) return;
+
+                const shipLength = parseInt(draggedShip.dataset.length);
+                const startX = parseInt(cell.dataset.x);
+                const startY = parseInt(cell.dataset.y);
+
+                if (checkPlacementValidity(cell, shipLength)) {
+                    // Plasser skipet visuelt på brettet
+                    const board = document.getElementById('my-board');
+                    for (let i = 0; i < shipLength; i++) {
+                        const targetX = startX + i;
+                        // Finn riktig rute i DOM
+                        const shipCell = board.querySelector(`.cell[data-x="${targetX}"][data-y="${startY}"]`);
+                        shipCell.classList.add('placed-ship');
+                        shipCell.dataset.occupied = "true"; // Merk som opptatt
+                    }
+                    
+                    // Fjern skipet fra havnen
+                    draggedShip.style.display = 'none';
+                    draggedShip = null;
+                } else {
+                    // Ugyldig plassering
+                    alert("Ugyldig plassering! Skipet går utenfor brettet eller kræsjer med et annet skip.");
+                    draggedShip = null;
+                }
+            });
+        }
+
+        // Sjekker om skipet passer (innenfor brett og ikke overlapper)
+        function checkPlacementValidity(startCell, length) {
+            const startX = parseInt(startCell.dataset.x);
+            const startY = parseInt(startCell.dataset.y);
+            const board = document.getElementById('my-board');
+
+            // Sjekk om går utenfor høyre kant
+            if (startX + length - 1 > GRID_SIZE) return false;
+
+            // Sjekk overlapp
+            for (let i = 0; i < length; i++) {
+                const targetX = startX + i;
+                const checkCell = board.querySelector(`.cell[data-x="${targetX}"][data-y="${startY}"]`);
+                if (checkCell && checkCell.dataset.occupied === "true") {
+                    return false; // Kræsj
+                }
+            }
+            return true;
+        }
+
+        // --- Setup Drag & Drop events for skipene i havnen ---
+        function setupDraggableShips() {
+            const ships = document.querySelectorAll('.draggable-ship');
+            ships.forEach(ship => {
+                ship.addEventListener('dragstart', (e) => {
+                    draggedShip = ship;
+                    // For Firefox kompabilitet
+                    e.dataTransfer.setData('text/plain', ship.id); 
+                });
+
+                ship.addEventListener('dragend', () => {
+                    // Hvis vi slapp den utenfor et gyldig droppunkt
+                    draggedShip = null; 
+                });
+            });
+        }
+
+        // --- Start alt ---
+        createBoardMarkup('my-board', false);
+        createBoardMarkup('opponent-board', true);
+        setupDraggableShips();
+
     </script>
 </body>
 </html>
